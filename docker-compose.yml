@@ -1,0 +1,37 @@
+version: '3.7'
+
+services:
+  # Build the app services
+    db:
+      image: mongo:latest
+      hostname: test_mongodb
+      environment:
+        - MONGO_INITDB_DATABASE=animal_db
+        - MONGO_INITDB_ROOT_USERNAME=root
+        - MONGO_INITDB_ROOT_PASSWORD=pass
+      volumes:
+        - ./init-db.js:/docker-entrypoint-initdb.d/init-db.js:ro
+      ports:
+        - 27017:27017
+
+    app:
+      build: app
+      #command: python -u app.py
+      volumes:
+        - .:/app/app
+      links:
+        - db
+
+
+    nginx:
+      container_name: nginx
+      build: nginx
+      # Bind the port 80 of container to machine port 80
+      ports:
+        - 80:80
+      # Make app as nginx dependency service
+      depends_on:
+        - app
+
+    
+  
