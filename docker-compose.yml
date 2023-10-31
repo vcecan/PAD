@@ -1,37 +1,91 @@
 version: '3.7'
 
+ 
+networks:
+  lab2_pad_default:
+    driver: bridge
+ 
+volumes:
+  mongo.one.vol:
+    name: "mongo.one.vol"
+ 
+  mongo.two.vol:
+    name: "mongo.two.vol"
+ 
+  mongo.three.vol:
+    name: "mongo.three.vol"
+
+  
+
 services:
   # Build the app services
-    db:
-      image: mongo:latest
-      hostname: test_mongodb
-      environment:
-        - MONGO_INITDB_DATABASE=animal_db
-        - MONGO_INITDB_ROOT_USERNAME=root
-        - MONGO_INITDB_ROOT_PASSWORD=pass
-      volumes:
-        - ./init-db.js:/docker-entrypoint-initdb.d/init-db.js:ro
-      ports:
-        - 27017:27017
 
-    app:
-      build: app
-      #command: python -u app.py
-      volumes:
-        - .:/app/app
-      links:
-        - db
+  mongo.one.db:
+    container_name: mongo.one.db
+    image: mongo:latest
+    networks:
+      lab2_pad_default:
+    ports:
+      - 20000:27017
+    volumes:
+      - mongo.one.vol:/data/db
+      # - ./rs-init.sh:/scripts/rs-init.sh
+    restart: always
+    entrypoint: [ "/usr/bin/mongod", "--bind_ip_all", "--replSet", "dbrs" ]
+ 
+  mongo.two.db:
+    container_name: mongo.two.db
+    image: mongo:latest
+    networks:
+      lab2_pad_default:
+    ports:
+      - 20001:27017
+    depends_on:
+      - mongo.one.db
+    volumes:
+      - mongo.two.vol:/data/db
+    restart: always
+    entrypoint: [ "/usr/bin/mongod", "--bind_ip_all", "--replSet", "dbrs" ]
+ 
+  mongo.three.db:
+    container_name: mongo.three.db
+    image: mongo:latest
+    networks:
+      lab2_pad_default:
+    ports:
+      - 20002:27017
+    depends_on:
+      - mongo.one.db      
+    volumes:
+      - mongo.three.vol:/data/db
+    restart: always
+    entrypoint: [ "/usr/bin/mongod", "--bind_ip_all", "--replSet", "dbrs" ]
+
+  
+  app:
+    build: app
+    #command: python -u app.py
+    volumes:
+      - .:/app/app
+    links:
+      - mongo.three.db
+      - mongo.two.db
+      - mongo.one.db
+    networks:
+      lab2_pad_default:
 
 
-    nginx:
-      container_name: nginx
-      build: nginx
-      # Bind the port 80 of container to machine port 80
-      ports:
-        - 80:80
-      # Make app as nginx dependency service
-      depends_on:
-        - app
+  nginx:
+    container_name: nginx
+    build: nginx
+    # Bind the port 80 of container to machine port 80
+    ports:
+      - 80:80
+    # Make app as nginx dependency service
+    depends_on:
+      - app
+    networks:
+      lab2_pad_default:
 
-    
+  
   
